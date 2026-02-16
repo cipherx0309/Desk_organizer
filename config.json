@@ -1,0 +1,54 @@
+{
+  "zones": {
+    "Main Work Area": {
+      "description": "Primary workspace for main tasks",
+      "position": {
+        "x_percent": 30,
+        "y_percent": 30,
+        "width_percent": 70,
+        "height_percent": 70
+      },
+      "color": [0, 200, 255],
+      "priority": 1
+    },
+    "Support Area": {
+      "description": "Top area for frequently-used small items",
+      "position": {
+        "x_percent": 0,
+        "y_percent": 0,
+        "width_percent": 100,
+        "height_percent": 30
+      },
+      "color": [0, 89, 255],
+      "priority": 2
+    },
+    "Edge Area": {
+      "description": "Left edge for secondary items",
+      "position": {
+        "x_percent": 0,
+        "y_percent": 30,
+        "width_percent": 30,
+        "height_percent": 70
+      },
+      "color": [85, 0, 255],
+      "priority": 3
+    }
+  },
+  "intent_rules": {
+    "work": {
+      "Main Work Area": "large work-related items",
+      "Support Area": "small frequently-used office supplies",
+      "Edge Area": "everything else"
+    },
+    "art": {
+      "Main Work Area": "large art creation tools",
+      "Support Area": "small art supplies and tools",
+      "Edge Area": "everything else"
+    },
+    "leisure": {
+      "Main Work Area": "dining and eating items",
+      "Support Area": "entertainment and reading items",
+      "Edge Area": "everything else"
+    }
+  }
+}

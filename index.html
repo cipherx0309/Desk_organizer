@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <title>Desk Organizer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body { position: fixed; overflow: hidden; width:100%; height:100%; background:black; }
+    .page { display:none; height:100%; flex-direction:column; }
+    .page.active { display:flex; }
+    #view-container { position:relative; flex:1; border-radius:2.5rem; overflow:hidden; background:#111; }
+    #check-view-container { position:relative; flex:1; border-radius:2.5rem; overflow:hidden; background:#111; }
+    #check-corner-container { position:relative; flex:1; border-radius:2.5rem; overflow:hidden; background:#111; }
+    #view-container video, #view-container img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+    #check-view-container video, #check-view-container img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+    #check-corner-container img, #check-corner-canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+    #check-corner-canvas { z-index:20; background:transparent; }
+    canvas { position:absolute; inset:0; width:100%; height:100%; z-index:20; background:transparent; }
+    .optionBtn { transition: background .2s; }
+    .optionBtn.selected { background: #ffc400; color:black; font-weight:bold; border:2px solid #fff; }
+    textarea { background:#232323; }
+  </style>
+</head>
+<body class="text-white font-sans">
+  <div id="page-scan" class="page active px-8">
+    <div class="pt-16 pb-4">
+      <h1 class="text-4xl font-bold">Desk <span class="text-yellow-400">Organizer</span></h1>
+      <p id="instruction" class="text-gray-400 mt-2">Center your desk and tap Capture</p>
+    </div>
+    <div id="view-container" class="mb-4 flex-1">
+      <video id="v1" autoplay playsinline muted></video>
+      <img id="static-frame" style="display:none;" />
+      <canvas id="cl"></canvas>
+    </div>
+    <div class="py-6">
+      <button id="capture-btn" class="w-full bg-yellow-400 text-black py-5 rounded-full font-bold text-xl"
+        onclick="captureAndFreeze()">Capture Desk</button>
+    </div>
+  </div>
+  <div id="page-intent" class="page px-8">
+    <div class="pt-16 pb-8"><h1 class="text-3xl font-bold">What will you use this desk for?</h1></div>
+    <div class="space-y-4">
+      <button id="opt-work" onclick="selectIntent('work')" class="optionBtn w-full bg-zinc-800 py-4 rounded-xl text-lg">For Work / Office</button>
+      <button id="opt-art" onclick="selectIntent('art')" class="optionBtn w-full bg-zinc-800 py-4 rounded-xl text-lg">For Art Creation</button>
+      <button id="opt-leisure" onclick="selectIntent('leisure')" class="optionBtn w-full bg-zinc-800 py-4 rounded-xl text-lg">For Eating / Leisure</button>
+      <textarea id="customText" rows="3" class="w-full rounded-xl p-4 mt-2 text-white" placeholder="Or describe your own needs..."></textarea>
+    </div>
+    <div class="py-8">
+      <button onclick="confirmIntent()" class="w-full bg-yellow-400 text-black py-5 rounded-full font-bold text-xl">Generate My Plan</button>
+    </div>
+  </div>
+  <div id="page-loading" class="page items-center justify-center">
+    <div class="animate-spin w-16 h-16 border-4 border-yellow-400 border-t-transparent rounded-full"></div>
+    <p class="mt-6 text-lg text-gray-300">Designing your plan...</p>
+  </div>
+  <div id="page-plan" class="page px-8">
+    <div class="pt-12 pb-4" style="flex-shrink:0;">
+      <h1 class="text-3xl font-bold">Your <span class="text-yellow-400">Plan</span></h1>
+      <p class="text-gray-400 text-sm mt-2">Follow the arrows to organize your desk</p>
+    </div>
+    <div class="flex-1" style="display:flex; align-items:center; justify-content:center; overflow:hidden; padding:0 0.5rem; min-height:0;">
+      <img id="plan-img" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:2rem;" />
+    </div>
+    <div class="pb-6" style="flex-shrink:0;">
+      <div id="zone-desc" class="text-sm mb-3"></div>
+      <button onclick="goToCheck()" class="w-full bg-white text-black py-4 rounded-full font-bold text-lg">Check My Work</button>
+    </div>
+  </div>
+
+  <!-- New page: Check My Work (camera + plan preview) -->
+  <div id="page-check" class="page px-8">
+    <div class="pt-16 pb-4">
+      <h1 class="text-4xl font-bold">Follow the <span class="text-yellow-400">Plan</span></h1>
+      <p id="check-instruction" class="text-gray-400 mt-2">Organize your desk and tap Capture</p>
+    </div>
+    <div id="check-view-container" class="mb-4 flex-1" style="position:relative;">
+      <video id="v2" autoplay playsinline muted></video>
+      <canvas id="cl2"></canvas>
+      <!-- Plan thumbnail in bottom-left corner -->
+      <div id="plan-thumbnail" onclick="showPlanPreview()" style="position:absolute; bottom:1rem; left:1rem; width:80px; height:80px; border-radius:1rem; overflow:hidden; cursor:pointer; border:2px solid #fbbf24; z-index:30;">
+        <img id="plan-thumb-img" style="width:100%; height:100%; object-fit:cover;" />
+      </div>
+    </div>
+    <div class="py-6">
+      <button id="check-capture-btn" class="w-full bg-yellow-400 text-black py-5 rounded-full font-bold text-xl" onclick="checkCaptureAndFreeze()">Capture</button>
+    </div>
+  </div>
+
+  <!-- New page: Mark corners after check capture -->
+  <div id="page-check-corners" class="page px-8">
+    <div class="pt-16 pb-4">
+      <h1 class="text-4xl font-bold">Mark Your <span class="text-yellow-400">Desk</span></h1>
+      <p id="check-corner-instruction" class="text-gray-400 mt-2">Tap the 4 corners: TL → TR → BR → BL</p>
+    </div>
+    <div id="check-corner-container" class="mb-4 flex-1" style="position:relative;">
+      <img id="check-static-frame" style="display:none;" />
+      <canvas id="check-corner-canvas"></canvas>
+    </div>
+    <div class="py-6">
+      <button id="check-next-btn" class="w-full bg-yellow-400 text-black py-5 rounded-full font-bold text-xl" onclick="finishCheck()">Next →</button>
+    </div>
+  </div>
+
+  <!-- Plan preview overlay (full screen) -->
+  <div id="plan-preview-overlay" onclick="hidePlanPreview()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:100; align-items:center; justify-content:center; padding:2rem;">
+    <img id="plan-preview-img" onclick="event.stopPropagation()" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:2rem;" />
+  </div>
+
+  <div id="page-result" class="page px-8 text-center" style="display:flex; flex-direction:column; overflow-y:auto;">
+    <div class="pt-12 pb-6">
+      <h1 class="text-4xl font-bold text-left">Results</h1>
+      <h2 class="text-4xl font-bold text-yellow-400 text-left">Report</h2>
+    </div>
+    
+    <!-- Score circle with animation -->
+    <div style="position:relative; width:200px; height:200px; margin:2rem auto;">
+      <svg width="200" height="200" style="transform:rotate(-90deg);">
+        <circle cx="100" cy="100" r="90" fill="none" stroke="#333" stroke-width="12"/>
+        <circle id="score-circle" cx="100" cy="100" r="90" fill="none" stroke="#fbbf24" stroke-width="12" 
+                stroke-dasharray="565.48" stroke-dashoffset="565.48" stroke-linecap="round"/>
+      </svg>
+      <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+        <div id="score-number" class="text-6xl font-bold">0</div>
+        <div class="text-gray-400 text-sm mt-1">Score</div>
+      </div>
+    </div>
+
+    <div class="mt-6 mb-8">
+      <h3 class="text-2xl font-bold mb-2">Excellent Work!</h3>
+      <p class="text-gray-400 text-sm">Your desk is well organized</p>
+    </div>
+
+    <!-- Feedback items -->
+    <div id="feedback-container" class="space-y-3 mb-8">
+      <!-- Will be populated dynamically by displayResults() -->
+    </div>
+
+    <button onclick="location.reload()" class="w-full bg-yellow-400 text-black py-4 rounded-full font-bold text-lg mb-6" style="display:flex; align-items:center; justify-content:center; gap:0.5rem;">
+      <span style="font-size:1.25rem;">↻</span> Scan New Desk
+    </button>
+  </div>
+  
+  <style>
+    @keyframes scoreAnimation {
+      to { stroke-dashoffset: 0; }
+    }
+  </style>
+  <script>
+    let points = [], frozen = false, blob = null, intent = null, containerW = 0, containerH = 0;
+    let planImageUrl = ""; // Store plan image URL for thumbnail
+    let checkPoints = [], checkFrozen = false, checkBlob = null;
+
+    const intents = ["work", "art", "leisure"], v1 = document.getElementById("v1"), cl = document.getElementById("cl"),
+          ctx = cl.getContext("2d"), staticImg = document.getElementById("static-frame"), container = document.getElementById("view-container");
+    const v2 = document.getElementById("v2"), cl2 = document.getElementById("cl2"), ctx2 = cl2.getContext("2d"),
+          checkStaticImg = document.getElementById("check-static-frame"), checkContainer = document.getElementById("check-view-container");
+    const checkCornerCanvas = document.getElementById("check-corner-canvas"), checkCornerCtx = checkCornerCanvas.getContext("2d");
+
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        v1.srcObject = stream;
+      } catch(e) { alert("Camera error: " + e.message); }
+    }
+    startCamera();
+
+    async function startCheckCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        v2.srcObject = stream;
+      } catch(e) { alert("Camera error: " + e.message); }
+    }
+
+    function goToCheck() {
+      startCheckCamera();
+      switchPage("page-plan", "page-check");
+    }
+
+    function showPlanPreview() {
+      document.getElementById("plan-preview-img").src = planImageUrl;
+      document.getElementById("plan-preview-overlay").style.display = "flex";
+    }
+
+    function hidePlanPreview() {
+      document.getElementById("plan-preview-overlay").style.display = "none";
+    }
+
+    function checkCaptureAndFreeze() {
+      if (!checkFrozen) {
+        if (v2.videoWidth === 0) { alert("Camera not ready yet."); return; }
+        const offscreen = document.createElement("canvas");
+        offscreen.width = v2.videoWidth;
+        offscreen.height = v2.videoHeight;
+        offscreen.getContext("2d").drawImage(v2, 0, 0);
+        offscreen.toBlob(b => {
+          checkBlob = b;
+          checkStaticImg.src = URL.createObjectURL(b);
+          checkStaticImg.style.display = "block";
+          checkFrozen = true;
+          
+          // Move to corner marking page
+          switchPage("page-check", "page-check-corners");
+          checkCornerCanvas.width = checkCornerCanvas.clientWidth;
+          checkCornerCanvas.height = checkCornerCanvas.clientHeight;
+        }, "image/jpeg", 0.95);
+      }
+    }
+
+    // Corner marking for check page
+    checkCornerCanvas.addEventListener("click", e => {
+      if (checkPoints.length >= 4) return;
+      const rect = checkCornerCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      checkPoints.push({ x, y });
+      drawCheckPoints();
+    });
+
+    function drawCheckPoints() {
+      checkCornerCtx.clearRect(0, 0, checkCornerCanvas.width, checkCornerCanvas.height);
+      const labels = ["TL", "TR", "BR", "BL"];
+      if (checkPoints.length > 1) {
+        checkCornerCtx.beginPath();
+        checkCornerCtx.moveTo(checkPoints[0].x, checkPoints[0].y);
+        for (let i = 1; i < checkPoints.length; i++) checkCornerCtx.lineTo(checkPoints[i].x, checkPoints[i].y);
+        if (checkPoints.length === 4) checkCornerCtx.closePath();
+        checkCornerCtx.strokeStyle = "#fbbf24";
+        checkCornerCtx.lineWidth = 2;
+        checkCornerCtx.stroke();
+      }
+      checkPoints.forEach((p, i) => {
+        checkCornerCtx.beginPath();
+        checkCornerCtx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+        checkCornerCtx.fillStyle = "#fbbf24";
+        checkCornerCtx.fill();
+        checkCornerCtx.strokeStyle = "white";
+        checkCornerCtx.lineWidth = 2;
+        checkCornerCtx.stroke();
+        checkCornerCtx.fillStyle = "white";
+        checkCornerCtx.font = "bold 13px sans-serif";
+        checkCornerCtx.fillText(labels[i], p.x + 14, p.y + 5);
+      });
+    }
+
+    function finishCheck() {
+      if (checkPoints.length < 4) {
+        alert("Please tap all 4 corners first.");
+        return;
+      }
+      
+      // Send to backend for comparison
+      const checkContainerRect = document.getElementById("check-corner-container").getBoundingClientRect();
+      const fd = new FormData();
+      fd.append("file", checkBlob);
+      fd.append("points", JSON.stringify(checkPoints.map(p => [p.x, p.y])));
+      fd.append("containerW", checkContainerRect.width);
+      fd.append("containerH", checkContainerRect.height);
+      
+      switchPage("page-check-corners", "page-loading");
+      
+      fetch("/check_desk", { method: "POST", body: fd })
+        .then(r => r.json())
+        .then(d => {
+          if (d.status === "success") {
+            displayResults(d.score, d.feedback);
+            switchPage("page-loading", "page-result");
+          } else {
+            alert("Error: " + (d.message || "Unknown"));
+            switchPage("page-loading", "page-check");
+          }
+        })
+        .catch(err => { 
+          alert("Network error: " + err); 
+          switchPage("page-loading", "page-check"); 
+        });
+    }
+
+    function displayResults(score, feedback) {
+      // Update feedback items
+      const feedbackContainer = document.getElementById("feedback-container");
+      feedbackContainer.innerHTML = "";
+      
+      feedback.forEach(item => {
+        const icon = item.status === "good" ? "✓" : (item.status === "warning" ? "⚠" : "✗");
+        const div = document.createElement("div");
+        div.style.cssText = "background:#0a1628; border-radius:1rem; padding:1.25rem; display:flex; align-items:center; gap:1rem;";
+        div.innerHTML = `
+          <div style="color:#fbbf24; font-size:1.5rem;">${icon}</div>
+          <div class="text-left text-sm">${item.message}</div>
+        `;
+        feedbackContainer.appendChild(div);
+      });
+      
+      // Animate score
+      animateScore(score);
+    }
+
+    function animateScore(targetScore) {
+      const circle = document.getElementById("score-circle");
+      const numberEl = document.getElementById("score-number");
+      const circumference = 2 * Math.PI * 90; // radius = 90
+      const offset = circumference - (targetScore / 100) * circumference;
+      
+      // Animate circle
+      circle.style.transition = "stroke-dashoffset 2s ease-out";
+      circle.style.strokeDashoffset = offset;
+      
+      // Animate number
+      let current = 0;
+      const increment = targetScore / 60; // 60 frames for smooth animation
+      const timer = setInterval(() => {
+        current += increment;
+        if (current >= targetScore) {
+          current = targetScore;
+          clearInterval(timer);
+        }
+        numberEl.textContent = Math.round(current);
+      }, 33); // ~30fps
+    }
+
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        v1.srcObject = stream;
+      } catch(e) { alert("Camera error: " + e.message); }
+    }
+    startCamera();
+
+    function captureAndFreeze() {
+      if (!frozen) {
+        if (v1.videoWidth === 0) { alert("Camera not ready yet."); return; }
+        containerW = container.clientWidth;
+        containerH = container.clientHeight;
+        const offscreen = document.createElement("canvas");
+        offscreen.width = v1.videoWidth;
+        offscreen.height = v1.videoHeight;
+        offscreen.getContext("2d").drawImage(v1, 0, 0);
+        offscreen.toBlob(b => {
+          blob = b;
+          staticImg.src = URL.createObjectURL(b);
+          staticImg.style.display = "block";
+          frozen = true;
+          cl.width = cl.clientWidth;
+          cl.height = cl.clientHeight;
+          document.getElementById("instruction").innerText = "Tap the 4 corners of your workspace in order: TL → TR → BR → BL";
+          document.getElementById("capture-btn").innerText = "Next →";
+        }, "image/jpeg", 0.95);
+      } else {
+        if (points.length < 4) { alert("Please tap all 4 corners first."); return; }
+        switchPage("page-scan", "page-intent");
+      }
+    }
+
+    cl.addEventListener("click", e => {
+      if (!frozen || points.length >= 4) return;
+      const rect = cl.getBoundingClientRect();
+      const x = e.clientX - rect.left, y = e.clientY - rect.top;
+      points.push({ x, y });
+      drawPoints();
+    });
+
+    function drawPoints() {
+      ctx.clearRect(0, 0, cl.width, cl.height);
+      const labels = ["TL", "TR", "BR", "BL"];
+      if (points.length > 1) {
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+        if (points.length === 4) ctx.closePath();
+        ctx.strokeStyle = "#fbbf24"; ctx.lineWidth = 2; ctx.stroke();
+      }
+      points.forEach((p, i) => {
+        ctx.beginPath(); ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+        ctx.fillStyle = "#fbbf24"; ctx.fill();
+        ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = "white"; ctx.font = "bold 13px sans-serif";
+        ctx.fillText(labels[i], p.x + 14, p.y + 5);
+      });
+    }
+
+    function selectIntent(v) {
+      intent = v;
+      intents.forEach(i => document.getElementById("opt-" + i).classList.remove("selected"));
+      document.getElementById("opt-" + v).classList.add("selected");
+    }
+
+    function confirmIntent() {
+      const customText = document.getElementById("customText").value.trim();
+      if (!intent && !customText) { alert("Please choose a purpose or describe your needs."); return; }
+      switchPage("page-intent", "page-loading");
+      send();
+    }
+
+    function send() {
+      const fd = new FormData();
+      fd.append("file", blob);
+      fd.append("points", JSON.stringify(points.map(p => [p.x, p.y])));
+      fd.append("containerW", containerW);
+      fd.append("containerH", containerH);
+      fd.append("intent", intent || "");
+      fd.append("intent_text", document.getElementById("customText").value.trim());
+      fetch("/process_desk", { method: "POST", body: fd })
+        .then(r => r.json())
+        .then(d => {
+          if (d.status === "success") {
+            planImageUrl = d.image; // Save plan image URL
+            document.getElementById("plan-img").src = d.image;
+            document.getElementById("plan-thumb-img").src = d.image; // Set thumbnail
+            document.getElementById("plan-preview-img").src = d.image; // Set preview
+            renderZones(d.zones || []);
+            switchPage("page-loading", "page-plan");
+          } else {
+            alert("Error: " + (d.message || "Unknown"));
+            switchPage("page-loading", "page-scan");
+          }
+        })
+        .catch(err => { alert("Network error: " + err); switchPage("page-loading", "page-scan"); });
+    }
+
+    function renderZones(zones) {
+      let html = "";
+      if (Array.isArray(zones)) {
+        zones.forEach(z => {
+          const items = Array.isArray(z.items) ? z.items.join(", ") : "";
+          if (items) html += `<div class="mb-1"><span class="text-yellow-400 font-bold">${z.zone}</span>: ${items}</div>`;
+        });
+      } else if (zones && typeof zones === "object") {
+        Object.entries(zones).forEach(([zone, items]) => {
+          const names = Array.isArray(items) ? items.map(it => it.name || it).join(", ") : "";
+          if (names) html += `<div class="mb-1"><span class="text-yellow-400 font-bold">${zone}</span>: ${names}</div>`;
+        });
+      }
+      document.getElementById("zone-desc").innerHTML = html;
+    }
+
+    function checkWork() { switchPage("page-plan", "page-result"); }
+    function switchPage(a, b) {
+      document.getElementById(a).classList.remove("active");
+      document.getElementById(b).classList.add("active");
+    }
+  </script>
+</body>
+</html>
