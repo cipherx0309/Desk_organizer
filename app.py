@@ -5,7 +5,7 @@ from google import genai
 from google.genai import types
 
 app = Flask(__name__, template_folder='.')
-client = genai.Client(api_key="AIzaSyANL6PfkA_suvaNd0bbJqn-6FaMUwFN1Lw")
+client = genai.Client(api_key="YOUR_API_KEY_HERE")  # Replace with your Gemini API key
 
 def sort_corners(pts):
     pts = np.array(pts, dtype="float32")
