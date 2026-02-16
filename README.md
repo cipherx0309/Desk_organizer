@@ -34,9 +34,9 @@ pip install -r requirements.txt
 
 ### 3. Set up API Key
 
-The code includes a demo API key for immediate testing.
+**Important**: You must provide your own Gemini API key to run this application.
 
-If you want to use your own API key, replace it in `app.py` (line 8):
+Replace the placeholder in `app.py` (line 8) with your API key:
 ```python
 client = genai.Client(api_key="YOUR_API_KEY_HERE")
 ```
@@ -45,6 +45,7 @@ To get a free Gemini API key:
 1. Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
 2. Sign in with your Google account
 3. Click "Create API Key"
+4. Copy the key and paste it into `app.py`
 
 ## 📱 Running the Application
 
