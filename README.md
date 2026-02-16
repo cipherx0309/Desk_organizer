@@ -95,7 +95,7 @@ Open the ngrok URL (`https://your-unique-url.ngrok-free.app`) on your phone's br
 
 ## 🎥 Demo Video
 
-[Link to demo video will be added here]
+https://youtube.com/shorts/77CalDnkifo
 
 ## 📧 Contact
 
